@@ -1,16 +1,24 @@
 
 import { TodoForm } from "@/components/todo/TodoForm";
-import { removeTodo, toggleTodo, updateTodo } from "@/features/todo/todoSlice";
-import { Badge, Button, Input, InputGroup, Menu, Portal, Select, Table, Text } from "@chakra-ui/react";
+import { removeTodo, setTodos, toggleTodo, updateTodo } from "@/features/todo/todoSlice";
+import { Badge, Button, createListCollection, Input, InputGroup, Menu, Portal, Select, Table, Text } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
 import { LuSearch } from "react-icons/lu";
 import { useDispatch, useSelector } from "react-redux";
+
+const filters = createListCollection({
+  items: [
+    { label: "All", value: "All" },
+    { label: "Pending", value: "Pending" },
+    { label: "Completed", value: "Completed" },
+  ]
+});
 
 export const TodoApp =()=>{
     const todoList = useSelector((state)=>state.todo.todos);
     const dispatch = useDispatch();
     const [searchText, setSearchText] = useState('');
-    const [statusFilter, setStatusFilter] = useState('')
+    const [statusFilter, setStatusFilter] = useState(['All'])
     const [editable, setEditable] = useState(false);
     const [editData, setEditData] = useState({
         id:null,
@@ -36,12 +44,32 @@ export const TodoApp =()=>{
             })
         }
     }
-    const filteredTodos = todoList.filter((todo)=> todo.text.toLowerCase().includes(searchText.toLowerCase()));
-    const handleStatusChange =(e)=> {
-        setStatusFilter(e.value);
-        console.log('status',statusFilter);
-    }
-    console.log('status',statusFilter);
+    const filteredTodos = todoList.filter((todo)=> {
+        const searchTodos = todo.text.toLowerCase().includes(searchText.toLowerCase());
+        let matchCompletedStatus = true;
+        if(statusFilter[0] === 'All'){
+            matchCompletedStatus = true
+        }else if(statusFilter[0] === 'Completed'){
+            matchCompletedStatus = todo.completed === true
+        }else if(statusFilter[0] === 'Pending'){
+            matchCompletedStatus = todo.completed === false
+        } 
+        return searchTodos && matchCompletedStatus
+    });
+    useEffect(()=>{
+        const savedTodos = JSON.parse(localStorage.getItem('todos'));
+        if (savedTodos){
+            dispatch(setTodos(savedTodos))
+        }
+    },[dispatch])
+
+    useEffect(()=>{
+        if (todoList.length > 0) {
+        localStorage.setItem('todos',JSON.stringify(todoList));
+        }
+        
+    },[todoList])
+    
     return(
         <div className="flex flex-wrap items-stretch min-h-screen">
             <div className="w-full md:w-1/2 p-5">
@@ -54,9 +82,12 @@ export const TodoApp =()=>{
                             <Input placeholder="Search tasks" value={searchText} onChange={(e)=>setSearchText(e.target.value)} />
                         </InputGroup>
                         <div className="flex-auto">
-                            <Select.Root size="sm" width="100%" maxW={'100px'} h={'100%'}
+                            <Select.Root size="sm" width="100%" maxW={'150px'} h={'100%'}
+                            collection={filters}
                             value={statusFilter}
-                                onValueChange={(e)=>setStatusFilter(e.value)}
+                                onValueChange={(e)=>{
+                                    setStatusFilter(e.value);
+                                }}
                             >
                                 <Select.HiddenSelect />
                                     <Select.Control>
@@ -70,8 +101,12 @@ export const TodoApp =()=>{
                                     <Portal>
                                         <Select.Positioner>
                                         <Select.Content>
-                                            <Select.Item item={'Pending'}>Pending</Select.Item>
-                                            <Select.Item item={'Completed'}>Completed</Select.Item>
+                                            {filters.items.map((filter) => (
+                                            <Select.Item item={filter} key={filter.value}>
+                                                {filter.label}
+                                                <Select.ItemIndicator />
+                                            </Select.Item>
+                                            ))}
                                         </Select.Content>
                                         </Select.Positioner>
                                     </Portal>
@@ -90,12 +125,14 @@ export const TodoApp =()=>{
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
-                                {todoList.length > 0 && filteredTodos.length === 0 && searchText && (
+                               {todoList.length > 0 && filteredTodos.length === 0 && (
                                 <Table.Row>
                                     <Table.Cell colSpan={4}>
-                                        <Text className="p-10 text-center text-red-500">
-                                        No task found for "{searchText}"
-                                        </Text>
+                                    <Text className="p-10 text-center text-red-500">
+                                        No task found
+                                        {searchText && ` for "${searchText}"`}
+                                        {statusFilter && statusFilter !== "All" && ` with status "${statusFilter}"`}
+                                    </Text>
                                     </Table.Cell>
                                 </Table.Row>
                                 )}

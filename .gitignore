@@ -9,14 +9,16 @@ build/
 *.log
 
 # Environment variables
-.env
 
 # OS files
 .DS_Store
 
 # Editor folders
-.vscode/
 .idea/
 
 # Chakra UI hidden state (optional)
 .cache/
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+config.bat
